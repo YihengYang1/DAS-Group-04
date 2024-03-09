@@ -30,6 +30,7 @@ library(sjPlot)
 library(stats)
 library(jtools)
 library(knitr)
+library(MASS)
 ```
 
 ```{r}
@@ -39,6 +40,7 @@ data <- read_csv("dataset04.csv")
 
 # Exploratory Data Analysis {#sec-EDA}
 
+Data summary:
 ```{r}
 summary <- data %>%
   skim()
@@ -47,7 +49,6 @@ print(summary_table)
 print(paste("Mean of the response variable:", mean(data$Total.Number.of.Family.members)))
 print(paste("Variance of the response variable:", var(data$Total.Number.of.Family.members)))
 ```
-
 We can see from the summary of the dataset that the mean of response variable (Total.Number.of.Family.members) is 4.53 and we calculate its variance is 4.91. This show that the difference between the mean and variance of response is not significantly large. Therefore, we may consider using Poisson Regression as our initial trial.
 
 ```{r}
@@ -80,7 +81,7 @@ ggplot(data = data, mapping = aes(x = log(Total.Number.of.Family.members))) +
 qqnorm(log(data$Total.Number.of.Family.members))
 qqline(log(data$Total.Number.of.Family.members))
 ```
-After using the log transformation the distribution is nearly normally distributed. (Is it good enough? Should we apply other methods to make some improvements?)
+After using the log transformation the distribution is nearly normally distributed.
 
 ```{r}
 #| label: fig-1
@@ -163,7 +164,7 @@ ggplot(data = data, mapping = aes(x = factor(Electricity), y = Total.Number.of.F
 
 # Formal Data Analysis {#sec-FDA}
 
-## Poisson Regression Model
+## Poisson Regression Model 
 ```{r}
 #| echo: true
 model <- glm(Total.Number.of.Family.members ~ Total.Household.Income + Total.Food.Expenditure + Household.Head.Sex + Household.Head.Age + Type.of.Household + House.Floor.Area + House.Age + Number.of.bedrooms + Electricity, data = data, 
@@ -181,6 +182,18 @@ confint(model) %>%
 ```
 From the p-value and the 95% CI of estimates of coefficients above, we observed that
 one class of the categorical variable Type.of.Household(Two or More Nonrelated Persons/Members) and continuous variable House.Floor.Area seem not to be statistically significant with the response variable.
+
+## Rate Ratio
+```{r}
+model_summary <- summary(model)
+coef <- model_summary$coefficients[,1]
+std_err <- model_summary$coefficients[,2]
+rate_ratio <- exp(model_summary$coef)
+conf_interval <- exp(cbind(coef - 1.96 * std_err, coef + 1.96 * std_err))
+result <- data.frame(coef = coef, std_err = std_err, rate_ratio = rate_ratio, conf_interval)
+print(result)
+```
+The result from the rate ratio agree with that from p-values and confidence intervals.
 
 ### Remove House.Floor.Area
 ```{r}
@@ -205,3 +218,59 @@ model_2 <- glm(Total.Number.of.Family.members ~ Total.Household.Income + Total.F
 summ(model_2)
 ```
 However, if we removed the categorical variable Type.of.Household from the model, the AIC and BIC both increased. Therefore, we cannot conclude that Type.of.Household will not influence the response variable.
+
+## Overdispersion
+```{r}
+ggplot(model, aes(x=log(fitted(model)), y=log((data$Total.Number.of.Family.members - fitted(model))^2)))+ 
+  geom_point(col="#f46d43") +
+  geom_abline(slope=1, intercept=0, col="#a6d96a", size=1) + 
+  ylab(expression((y-hat(mu))^2)) + 
+  xlab(expression(hat(mu)))
+```
+If we believe the variance of the response variance is much larger than the mean, we can firstly consider a quasi-poisson model.
+
+### Quasi-Poisson Model
+```{r}
+X2 <- sum(resid(model, type = "pearson")^2) 
+dp <- X2 / model$df.residual
+summary(model, dispersion = dp)
+```
+
+```{r}
+drop1(model, test = "F")
+```
+From the model summary above, we are supposed to delete the variable House.Floor.Area.
+
+```{r}
+#| echo: true
+model_quasi <- glm(Total.Number.of.Family.members ~ Total.Household.Income + Total.Food.Expenditure + Household.Head.Sex + Household.Head.Age + Type.of.Household +  House.Age + Number.of.bedrooms + Electricity, data = data, 
+             family = quasipoisson(link = "log"))
+drop1(model_quasi, test = "F")
+```
+Now we have checked that all the variables are significant.
+
+### Negative-Binomial Model
+Considering the over-dispersion, another choice is the negative-Binomial Model
+```{r}
+#| echo: true
+model_nb <- glm.nb(Total.Number.of.Family.members ~ Total.Household.Income + Total.Food.Expenditure + Household.Head.Sex + Household.Head.Age + Type.of.Household + House.Floor.Area + House.Age + Number.of.bedrooms + Electricity, data = data)
+summary(model_nb)
+model_nb$aic
+```
+Similarly, we can see that the categorical variable Type.of.Household(Two or More Nonrelated Persons/Members) and continuous variable House.Floor.Area seem not to be statistically significant with the response variable.
+
+```{r}
+#| echo: true
+model_nb1 <- glm.nb(Total.Number.of.Family.members ~ Total.Household.Income + Total.Food.Expenditure + Household.Head.Sex + Household.Head.Age + Type.of.Household + House.Age + Number.of.bedrooms + Electricity, data = data)
+summary(model_nb1)
+model_nb1$aic
+```
+We first deleted the continuous variable House.Floor.Area and observed that the AIC of the model decreased. The summary of the latest model indicated we should delete the categorical variable Type.of.Household as well.
+
+```{r}
+#| echo: true
+model_nb2 <- glm.nb(Total.Number.of.Family.members ~ Total.Household.Income + Total.Food.Expenditure + Household.Head.Sex + Household.Head.Age + House.Age + Number.of.bedrooms + Electricity, data = data)
+summary(model_nb2)
+model_nb2$aic
+```
+The AIC rose after we deleted the categorical variable Type.of.Household. Therefore, we could conclude that the continuous variable House.Floor.Area is the only variable that might not influence the response variable Total.Number.of.Family.members.
