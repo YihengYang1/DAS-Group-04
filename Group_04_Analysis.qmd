@@ -1,0 +1,207 @@
+---
+title: "Investigate which household related variables influence the number of people living in a household"
+author: "Group 04"
+number-sections: true
+format: 
+  html:
+    embed-resources: true
+    code-tools: true
+  pdf: default
+editor_options: 
+  chunk_output_type: console
+execute:
+  echo: false
+  eval: true
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: libraries
+library(ggplot2)
+library(dplyr)
+library(moderndive)
+library(gapminder)
+library(skimr)
+library(tidyverse)
+library(moderndive)
+library(gapminder)
+library(sjPlot)
+library(stats)
+library(jtools)
+library(knitr)
+```
+
+```{r}
+#| label: data
+data <- read_csv("dataset04.csv")
+```
+
+# Exploratory Data Analysis {#sec-EDA}
+
+```{r}
+summary <- data %>%
+  skim()
+summary_table <- skim_to_list(summary)
+print(summary_table)
+print(paste("Mean of the response variable:", mean(data$Total.Number.of.Family.members)))
+print(paste("Variance of the response variable:", var(data$Total.Number.of.Family.members)))
+```
+
+We can see from the summary of the dataset that the mean of response variable (Total.Number.of.Family.members) is 4.53 and we calculate its variance is 4.91. This show that the difference between the mean and variance of response is not significantly large. Therefore, we may consider using Poisson Regression as our initial trial.
+
+```{r}
+#| label: fig-0
+#| fig-cap: Distribution of Total Number of Family members 
+ggplot(data = data, mapping = aes(x = Total.Number.of.Family.members)) +
+  geom_histogram(bins = 60, color = "white", fill = "skyblue") +
+  labs(x = "Total Number of Family members")
+```
+
+```{r}
+#| label: fig-00
+#| fig-cap: QQ-plot of Total Number of Family members 
+qqnorm(data$Total.Number.of.Family.members)
+qqline(data$Total.Number.of.Family.members)
+```
+From the @fig-0(Histogram) and the @fig-00(QQ-plot), the response variable seems not to fit a normal distribution, so we take the log transformation on the response variable.
+
+```{r}
+#| label: fig-log0
+#| fig-cap: Distribution of Total Number of Family members after log transformation
+ggplot(data = data, mapping = aes(x = log(Total.Number.of.Family.members))) +
+  geom_histogram(bins = 60, color = "white", fill = "skyblue") +
+  labs(x = "Total Number of Family members")
+```
+
+```{r}
+#| label: fig-log00
+#| fig-cap: QQ-plot of Total Number of Family members after log transformation
+qqnorm(log(data$Total.Number.of.Family.members))
+qqline(log(data$Total.Number.of.Family.members))
+```
+After using the log transformation the distribution is nearly normally distributed. (Is it good enough? Should we apply other methods to make some improvements?)
+
+```{r}
+#| label: fig-1
+#| fig-cap: Total Number of Family members by Total Household Income
+ggplot(data, aes(x = Total.Household.Income, y = Total.Number.of.Family.members)) +
+  geom_jitter() +
+  labs(x = "Total Household Income", y = "Total Number of Family members") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+#| label: fig-2
+#| fig-cap: Total Number of Family members by Total Food Expenditure
+ggplot(data, aes(x = Total.Food.Expenditure, y = Total.Number.of.Family.members)) +
+  geom_jitter() +
+  labs(x = "Total Food Expenditure", y = "Total Number of Family members") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+#| label: fig-3
+#| fig-cap: Total Number of Family members by Household Head Sex
+ggplot(data = data, mapping = aes(x = factor(Household.Head.Sex), y = Total.Number.of.Family.members)) +
+  geom_boxplot(fill = "steelblue") +
+  labs(x = "Total Head Sex", y = "Total Number of Family members")  
+```
+
+```{r}
+#| label: fig-4
+#| fig-cap: Total Number of Family members by Household Head Age
+ggplot(data, aes(x = Household.Head.Age, y = Total.Number.of.Family.members)) +
+  geom_jitter() +
+  labs(x = "Household Head Age", y = "Total Number of Family members") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+#| label: fig-5
+#| fig-cap: Total Number of Family members by Type of Household
+ggplot(data = data, mapping = aes(x = factor(Type.of.Household), y = Total.Number.of.Family.members)) +
+  geom_boxplot(fill = "steelblue") +
+  labs(x = "Type of Household", y = "Total Number of Family members")  
+```
+
+```{r}
+#| label: fig-6
+#| fig-cap: Total Number of Family members by House Floor Area
+ggplot(data, aes(x = House.Floor.Area, y = Total.Number.of.Family.members)) +
+  geom_jitter() +
+  labs(x = "House Floor Area", y = "Total Number of Family members") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+#| label: fig-7
+#| fig-cap: Total Number of Family members by House Age
+ggplot(data, aes(x = House.Age, y = Total.Number.of.Family.members)) +
+  geom_jitter() +
+  labs(x = "House Age", y = "Total Number of Family members") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+#| label: fig-8
+#| fig-cap: Total Number of Family members by Number of bedrooms
+ggplot(data, aes(x = Number.of.bedrooms, y = Total.Number.of.Family.members)) +
+  geom_jitter() +
+  labs(x = "Number of bedrooms", y = "Total Number of Family members") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r}
+#| label: fig-9
+#| fig-cap: Total Number of Family members by Electricity
+ggplot(data = data, mapping = aes(x = factor(Electricity), y = Total.Number.of.Family.members)) +
+  geom_boxplot(fill = "steelblue") +
+  labs(x = "Electricity", y = "Total Number of Family members") +
+  scale_x_discrete(labels = c("Do not have electricity", "Have electricity")) 
+```
+
+# Formal Data Analysis {#sec-FDA}
+
+## Poisson Regression Model
+```{r}
+#| echo: true
+model <- glm(Total.Number.of.Family.members ~ Total.Household.Income + Total.Food.Expenditure + Household.Head.Sex + Household.Head.Age + Type.of.Household + House.Floor.Area + House.Age + Number.of.bedrooms + Electricity, data = data, 
+             family = poisson(link = "log"))
+```
+
+### Summary of the model
+```{r}
+summ(model)
+```
+
+```{r}
+confint(model) %>%
+  kable()
+```
+From the p-value and the 95% CI of estimates of coefficients above, we observed that
+one class of the categorical variable Type.of.Household(Two or More Nonrelated Persons/Members) and continuous variable House.Floor.Area seem not to be statistically significant with the response variable.
+
+### Remove House.Floor.Area
+```{r}
+#| echo: true
+model_1 <- glm(Total.Number.of.Family.members ~ Total.Household.Income + Total.Food.Expenditure + Household.Head.Sex + Household.Head.Age + Type.of.Household + House.Age + Number.of.bedrooms + Electricity, data = data, 
+             family = poisson(link = "log"))
+```
+
+```{r}
+summ(model_1)
+```
+After removed the continuous variable House.Floor.Area, the AIC of the model almost remained the same, and the BIC of the model dropped a bit. So we can prove that House.Floor.Area does not influence response variable significantly.
+
+### Remove Type.of.Household
+```{r}
+#| echo: true
+model_2 <- glm(Total.Number.of.Family.members ~ Total.Household.Income + Total.Food.Expenditure + Household.Head.Sex + Household.Head.Age + House.Age + Number.of.bedrooms + Electricity, data = data, 
+             family = poisson(link = "log"))
+```
+
+```{r}
+summ(model_2)
+```
+However, if we removed the categorical variable Type.of.Household from the model, the AIC and BIC both increased. Therefore, we cannot conclude that Type.of.Household will not influence the response variable.
