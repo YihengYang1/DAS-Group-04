@@ -1,21 +1,32 @@
 ---
 title: "DAS-Project2"
 author: "Yiheng Yang"
-format: pdf
-editor: visual
+number-sections: true
+format: 
+  html:
+    embed-resources: true
+    code-tools: true
+  pdf: default
+editor_options: 
+  chunk_output_type: console
 execute:
+  echo: true
+  eval: true
   warning: false
+  message: false
 ---
 
-# load the data
+# Load the data
 
 ```{r}
+#| label: data
 data=read.csv("dataset04.csv")
 ```
 
-# get packages
+# Get packages
 
 ```{r}
+#| label: libraries
 library(tidyverse)
 library(moderndive)
 library(gapminder)
@@ -31,7 +42,9 @@ library(gt)
 library(janitor)
 ```
 
-# explanatory analysis
+# Exploratory Data Analysis {#sec-EDA}
+
+## Data summary
 
 ```{r}
 data%>%summarize('Mean' = mean(Total.Number.of.Family.members),
@@ -57,7 +70,7 @@ Sample_size = html("Sample Size"))
 
 We can see from this numerical summary, the mean of number of family members is 4.53 and the variance is 4.91. If variance is bigger than mean, we can determine that we have overdispersion. We will investigate this phenomenon later.
 
-# convert some categorical variables to factors
+## Convert some categorical variables to factors
 
 ```{r}
 data$Household.Head.Sex=as.factor(data$Household.Head.Sex)
@@ -68,7 +81,7 @@ data$Number.of.bedrooms=as.factor(data$Number.of.bedrooms)
 levels(data$Number.of.bedrooms)=c("0","1","2","3","4","5","6","7")
 ```
 
-# Graphical summaries
+## Graphical summaries
 
 As we want to plot a boxplot with x axis to be number of family members, so we need to change this variable to be a factor.
 
@@ -138,10 +151,12 @@ ggplot(data=data,aes(x=Total.Number.of.Family.members,group=Electricity))+geom_b
 
 For those small size households, the proportion wothout electricity is relatively high.
 
-# format analysis
+# Formal analysis {#sec-FDA}
+
+## Poisson Regression Model
 
 ```{r}
-# As the reponse variable is the number of people living in a household, which is counts data, we tend to use a poisson model to fit it.
+# As the response variable is the number of people living in a household, which is counts data, we tend to use a poisson model to fit it.
 data$Total.Number.of.Family.members=as.numeric(as.character(data$Total.Number.of.Family.members))
 data$Number.of.bedrooms=as.numeric(as.character(data$Number.of.bedrooms))
 model1=glm(Total.Number.of.Family.members~Total.Household.Income+Total.Food.Expenditure+Household.Head.Sex+Household.Head.Age+Type.of.Household+House.Floor.Area+House.Age+Number.of.bedrooms+Electricity,data=data,family = poisson)
@@ -159,17 +174,45 @@ levels(data$Electricity)
 
 The default baseline in R being taken as the one which comes first alphabetically. So these three categorical variables adopt female, Extended Family, 0 as baseline.
 
-From the above summary we can observe that one continous explanaroty variable floor area is not significant and compared to extended family, Two or More Nonrelated Persons/Members is not significant while single family is significant.
+From the above summary we can observe that one continuous explanatory variable floor area is not significant and compared to extended family, Two or More Nonrelated Persons/Members is not significant while single family is significant according to the p-value and the 95% CI of estimates of coefficients.
+
+### Rate Ratio
+
+```{r}
+model_summary <- summary(model1)
+coef <- model_summary$coefficients[,1]
+std_err <- model_summary$coefficients[,2]
+rate_ratio <- exp(model_summary$coef)
+conf_interval <- exp(cbind(coef - 1.96 * std_err, coef + 1.96 * std_err))
+result <- data.frame(coef = coef, std_err = std_err, rate_ratio = rate_ratio, conf_interval)
+print(result)
+```
+The result from the rate ratio agree with that from p-values and confidence intervals.
 
 So we can remove the house floor area variable firstly.
+
+### Remove House.Floor.Area
 
 ```{r}
 model2=glm(Total.Number.of.Family.members~Total.Household.Income+Total.Food.Expenditure+Household.Head.Sex+Household.Head.Age+Type.of.Household+House.Age+Number.of.bedrooms+Electricity,data=data,family = poisson)
 model2%>%
   summary()
 ```
+After removed the continuous variable House.Floor.Area, the AIC of the model almost remained the same, and the BIC of the model dropped a bit. So we can prove that House.Floor.Area does not influence response variable significantly.
 
-# Overdispersion
+### Remove Type.of.Household
+
+```{r}
+model_2 <- glm(Total.Number.of.Family.members ~ Total.Household.Income + Total.Food.Expenditure + Household.Head.Sex + Household.Head.Age + House.Age + Number.of.bedrooms + Electricity, data = data, 
+             family = poisson(link = "log"))
+```
+
+```{r}
+summ(model_2)
+```
+However, if we removed the categorical variable Type.of.Household from the model, the AIC and BIC both increased. Therefore, we cannot conclude that Type.of.Household will not influence the response variable and need to the Overdispersion case.
+
+## Overdispersion
 
 ```{r}
 ggplot(model2, aes(x=log(fitted(model2)), y=log((data$Total.Number.of.Family.members-fitted(model2))^2)))+
@@ -181,29 +224,56 @@ ylab(expression((y-hat(mu))^2)) + xlab(expression(hat(mu)))
 
 From the above scatterplot of mean and variance, we can find most of the points lie above the line of equality for mean and variance. In this case, we are not to able to determine which explanatory variables are significant.
 
-# Quasi-Poisson model
+### Quasi-Poisson model
 
 we can define a dispersion parameter $\phi$ such that $Var(Y_i)=\phi\mu_i$, we can estimate this parameter by $$\hat\phi=\frac{X^2}{n-p}$$
 
 ```{r}
-X2=sum(resid(model2,type="pearson")^2)
-dp=X2/model2$df.res
+X2=sum(resid(model1,type="pearson")^2)
+dp=X2/model1$df.res
 #With the use of the estimated dispersion parameter the Wald tests are not very reliable, so we turn to an F test to determine the significance of the regression coefficients:
-drop1(model2,test="F")
+drop1(model1,test="F")
 ```
-
-After we try to fit a quasi-poisson model, the summary still shows all the remaining variables are significant.
-
-# Negative binomial models
+From the model summary above, we are supposed to delete the variable House.Floor.Area.
 
 ```{r}
-model3=glm.nb(Total.Number.of.Family.members~Total.Household.Income+Total.Food.Expenditure+Household.Head.Sex+Household.Head.Age+Type.of.Household+House.Age+Number.of.bedrooms+Electricity,data=data)
+model_quasi <- glm(Total.Number.of.Family.members ~ Total.Household.Income + Total.Food.Expenditure + Household.Head.Sex + Household.Head.Age + Type.of.Household +  House.Age + Number.of.bedrooms + Electricity, data = data, 
+             family = quasipoisson(link = "log"))
+drop1(model_quasi, test = "F")
+```
+After we try to fit a quasi-poisson model and delete House.Floor.Area, the summary shows all the remaining variables are significant.
+
+### Negative binomial models
+
+Considering the Overdispersion, another choice is the Negative-binomial model.
+
+```{r}
+model3=glm.nb(Total.Number.of.Family.members~Total.Household.Income+Total.Food.Expenditure+Household.Head.Sex+Household.Head.Age+Type.of.Household+House.Floor.Area+House.Floor.Area+House.Age+Number.of.bedrooms+Electricity,data=data)
 summary(model3)
-c(model2$deviance,model2$aic)
-c(model3$deviance,model3$aic)
 ```
 
-# final model
+Similarly, we can see that the categorical variable Type.of.Household(Two or More Nonrelated Persons/Members) and continuous variable House.Floor.Area seem not to be statistically significant with the response variable.
+
+```{r}
+model_nb1 <- glm.nb(Total.Number.of.Family.members ~ Total.Household.Income + Total.Food.Expenditure + Household.Head.Sex + Household.Head.Age + Type.of.Household + House.Age + Number.of.bedrooms + Electricity, data = data)
+summary(model_nb1)
+model_nb1$aic
+```
+We first deleted the continuous variable House.Floor.Area and observed that the AIC of the model decreased. The summary of the latest model indicated we should delete the categorical variable Type.of.Household as well.
+
+```{r}
+model_nb2 <- glm.nb(Total.Number.of.Family.members ~ Total.Household.Income + Total.Food.Expenditure + Household.Head.Sex + Household.Head.Age + House.Age + Number.of.bedrooms + Electricity, data = data)
+summary(model_nb2)
+model_nb2$aic
+```
+The AIC rose after we deleted the categorical variable Type.of.Household. Therefore, we could conclude that the continuous variable House.Floor.Area is the only variable that might not influence the response variable Total.Number.of.Family.members.
+
+# Final model
+
+```{r}
+c(model2$deviance,model2$aic)
+c(model_nb1$deviance,model3$aic)
+```
 
 The final model is:$$Total.Number.of.Family.members=\beta_0+\beta_1\cdot Total.Household.Income+\beta_2\cdot Total.Food.Expenditure+\beta_3\cdot \mathbb{I}_{\mbox{Male}}(x)+\beta_4\cdot Household.Head.Age+\beta_5\cdot \mathbb{I}_{\mbox{Family}}(x)+\beta_6\cdot House.Age+\beta_7\cdot Number.of.bedrooms+\beta_8\cdot \mathbb{I}_{\mbox{Electricity}}(x)$$
 
@@ -213,7 +283,6 @@ $$\mathbb{I}_{\mbox{Male}}(x)=\left\{
 0 ~~~ \mbox{if the head of household is female}.\\
 \end{array}
 \right.$$
-
 
 $$\mathbb{I}_{\mbox{Family}}(x)=\left\{
 \begin{array}{ll}
@@ -229,11 +298,10 @@ $$\mathbb{I}_{\mbox{Electricity}}(x)=\left\{
 \end{array}
 \right.$$
 
+For extended family and two or more nonrelated persons/members, the final model is: $$Total.Number.of.Family.members=1.596-2.532\times10^{-7}\cdot Total.Household.Income+2.953\times10^{-6}\cdot Total.Food.Expenditure+0.2634\cdot \mathbb{I}_{\mbox{Male}}(x)-3.852\times10^{-3}\cdot Household.Head.Age-3.760\times10^{-3}cdot House.Age+4.445\times10^{-2}\cdot Number.of.bedrooms-9.133\times10^{-2}\cdot \mathbb{I}_{\mbox{Electricity}}(x)$$
 
+For single family, the final model is: $$Total.Number.of.Family.members=1.596-2.532\times10^{-7}\cdot Total.Household.Income+2.953\times10^{-6}\cdot Total.Food.Expenditure+0.2634\cdot \mathbb{I}_{\mbox{Male}}(x)-3.852\times10^{-3}\cdot Household.Head.Age-3.760\times10^{-3}cdot House.Age+4.445\times10^{-2}\cdot Number.of.bedrooms-9.133\times10^{-2}\cdot \mathbb{I}_{\mbox{Electricity}}(x)-0.347$$
 
-For extended family and two or more nonrelated persons/members,
-the final model is:
-$$Total.Number.of.Family.members=1.596-2.532\times10^{-7}\cdot Total.Household.Income+2.953\times10^{-6}\cdot Total.Food.Expenditure+0.2634\cdot \mathbb{I}_{\mbox{Male}}(x)-3.852\times10^{-3}\cdot Household.Head.Age-3.760\times10^{-3}cdot House.Age+4.445\times10^{-2}\cdot Number.of.bedrooms-9.133\times10^{-2}\cdot \mathbb{I}_{\mbox{Electricity}}(x)$$
+# Conclusion
 
-For single family, the final model is:
-$$Total.Number.of.Family.members=1.596-2.532\times10^{-7}\cdot Total.Household.Income+2.953\times10^{-6}\cdot Total.Food.Expenditure+0.2634\cdot \mathbb{I}_{\mbox{Male}}(x)-3.852\times10^{-3}\cdot Household.Head.Age-3.760\times10^{-3}cdot House.Age+4.445\times10^{-2}\cdot Number.of.bedrooms-9.133\times10^{-2}\cdot \mathbb{I}_{\mbox{Electricity}}(x)-0.347$$
+Variables Total.Household.Income, Total.Food.Expenditure, Household.Head.Sex, Household.Head.Age, Type.of.Household, House.Age, Number.of.bedrooms and Electricity could influence response variable Total.Number.of.Family.members.
