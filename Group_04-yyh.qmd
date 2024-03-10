@@ -1,6 +1,6 @@
 ---
 title: "DAS-Project2"
-author: "Yiheng Yang"
+author: "Yiheng Yang, Yuanqing Zhang"
 number-sections: true
 format: 
   html:
@@ -40,11 +40,13 @@ library(knitr)
 library(tidyr)
 library(gt)
 library(janitor)
+library(skimr)
+library(kableExtra)
 ```
 
 # Exploratory Data Analysis {#sec-EDA}
 
-## Data summary
+## Summary of response variable
 
 ```{r}
 data%>%summarize('Mean' = mean(Total.Number.of.Family.members),
@@ -81,6 +83,31 @@ data$Number.of.bedrooms=as.factor(data$Number.of.bedrooms)
 levels(data$Number.of.bedrooms)=c("0","1","2","3","4","5","6","7")
 ```
 
+## Summary of categorical explanatory variables
+
+```{r}
+data_categorical=data%>%
+  dplyr::select("Household.Head.Sex","Type.of.Household","Electricity")
+summary(data_categorical)
+```
+
+The numerical summary shows that male owners, single families and households with electricity account for a major proportion.
+
+## Summary of numerical explanatory variables
+
+```{r}
+data_numerical=data[,c(1,3,5,7,8,9,10)]
+data_numerical$Number.of.bedrooms=as.numeric(as.character(data_numerical$Number.of.bedrooms))
+my_skim <- skim_with(numeric = sfl(hist = NULL), 
+                  base = sfl(n = length))
+my_skim(data_numerical) %>%
+  transmute(Variable=skim_variable, Sample_size = n, Mean=numeric.mean, St.Dev=numeric.sd,
+            Min=numeric.p0, Median=numeric.p50,  Max=numeric.p100,
+            IQR = numeric.p75-numeric.p50) %>%
+  kable(format.args = list(big.mark = ","), digits=2) %>%
+  kable_styling(font_size = 10, latex_options = "hold_position")
+```
+
 ## Graphical summaries
 
 As we want to plot a boxplot with x axis to be number of family members, so we need to change this variable to be a factor.
@@ -90,13 +117,19 @@ data$Total.Number.of.Family.members=as.factor(data$Total.Number.of.Family.member
 ```
 
 ```{r}
+ggplot(data=data,aes(x=Total.Number.of.Family.members))+geom_bar()
+```
+
+The boxplot shows that household with four family members accounts for the largest proportion. Most of the data is consisted of families with three to five family members.
+
+```{r}
 ggplot(data=data,aes(x=Total.Number.of.Family.members,y=Total.Household.Income,fill=Total.Number.of.Family.members))+geom_boxplot()+theme(legend.position = "none")+labs(x="Number of Family Members",y="Total Household Income",title="Income of families with different number of family members ")
 ```
 
 We can see from the above boxplot that the median of household income increase as number of family members increase.
 
 ```{r}
-ggplot(data=data,aes(x=Total.Number.of.Family.members,y=Total.Food.Expenditure,fill=Total.Number.of.Family.members))+geom_boxplot()+theme(legend.position = "none")+labs(x="Number of Family Members",y="Total food expenditure",title="Food expenditure of families with different number of family members ")
+ggplot(data=data,aes(x=Total.Number.of.Family.members,y=Total.Food.Expenditure,fill=Total.Number.of.Family.members))+geom_boxplot()+theme(legend.position = "none")+labs(x="Number of Family Members",y="Total food expenditure",title="Food expenditure of families with different number of family members")
 ```
 
 The boxplot indicates that median increase significantly as the number of family members increase. Household with 19 members have the largest variance in food expenditure.
@@ -116,6 +149,12 @@ ggplot(data=data,aes(x=Total.Number.of.Family.members,group=Household.Head.Sex))
 We can see from the barplot, for those small sized households, the proportion is much higher for females than for males. However, this situation does not exist for those household with four or more family members.
 
 ```{r}
+ggplot(data=data,aes(x=Household.Head.Sex,y=as.numeric(as.character(Total.Number.of.Family.members))))+geom_boxplot(aes(fill=Household.Head.Sex))+labs(x="Household head sex",y="Number of family members",title="Number of family members by sex")
+```
+
+We can conclude from the boxplot that households tend to have more family members if their owner is male.
+
+```{r}
 ggplot(data=data,aes(x=Total.Number.of.Family.members,y=Household.Head.Age,fill=Total.Number.of.Family.members))+geom_boxplot()+theme(legend.position = "none")+labs(x="Number of Family Members",y="Household head age",title="Head age for different size households")
 ```
 
@@ -126,6 +165,10 @@ ggplot(data=data,aes(x=Total.Number.of.Family.members,group=Type.of.Household))+
 ```
 
 These families with two or more nonrelated members only exist in medium size household. As total family members increase more than 8, single family account for a very small proportion.
+
+```{r}
+ggplot(data=data,aes(x=Type.of.Household,y=as.numeric(as.character(Total.Number.of.Family.members))))+geom_boxplot(aes(fill=Type.of.Household))+scale_x_discrete(labels=c("Extended","Single","Two or more"))+labs(x="Type of household",y="Number of family members",title="Number of family members by type of household")+theme(legend.position = "bottom")
+```
 
 ```{r}
 ggplot(data=data,aes(x=Total.Number.of.Family.members,y=House.Floor.Area,fill=Total.Number.of.Family.members))+geom_boxplot()+theme(legend.position = "none")+labs(x="Number of Family Members",y="House floor area",title="House floor area for different size of households")
@@ -150,6 +193,12 @@ ggplot(data=data,aes(x=Total.Number.of.Family.members,group=Electricity))+geom_b
 ```
 
 For those small size households, the proportion wothout electricity is relatively high.
+
+```{r}
+ggplot(data=data,aes(x=Electricity,y=as.numeric(as.character(Total.Number.of.Family.members))))+geom_boxplot(aes(fill=Electricity))+labs(x="Electricity",y="Number of family members",title="Number of family members by electricity")
+```
+
+From the above boxplot, households with electricity and without electricity have the same distribution of family members.
 
 # Formal analysis {#sec-FDA}
 
