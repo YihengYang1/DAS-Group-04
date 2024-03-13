@@ -18,7 +18,33 @@ execute:
 
 # Introduction
 
-The Family Income and Expenditure Survey is conducted in Philippines every three years, which provides data about income and expenditure of family. The dataset contains information about the household income, food expenditure, floor area of house and so on. This analysis aims to find which household variables that influence the number of people living in a household.
+In order to find which household variables that influence the number of people living in a household. We use the datasets come from the Family Income and Expenditure Survey which is conducted in Philippines every three years. All the data were based on Soccsksargen, and the variables are shown in @tbl-variables.
+
++-----------------------+---------------+--------------------------------+---------------------------------------------+
+|                       | variable type | variable name                  | variable description                        |
++=======================+===============+================================+=============================================+
+| response variable     | count         | Total.Number.of.Family.members | Number of people living in the house        |
++-----------------------+---------------+--------------------------------+---------------------------------------------+
+| explanatory variables | categorical   | Household.Head.Sex             | Head of the households sex                  |
+|                       |               |                                |                                             |
+|                       |               | Type.of.Household              | Relationship between the group of people    |
+|                       |               |                                |                                             |
+|                       |               | Electricity                    | If the house have electricity               |
++-----------------------+---------------+--------------------------------+---------------------------------------------+
+|                       | numerical     | Total.Household.Income         | Annual household income(in Philippine peso) |
+|                       |               |                                |                                             |
+|                       |               | Total.Food.Expenditure         | Annual expenditure by the household on food |
+|                       |               |                                |                                             |
+|                       |               | Household.Head.Age             | Head of the household age(in years)         |
+|                       |               |                                |                                             |
+|                       |               | House.Floor.Area               | Floor area of the house(in $m^2$)           |
+|                       |               |                                |                                             |
+|                       |               | House.Age                      | Age of the building(in years)               |
+|                       |               |                                |                                             |
+|                       |               | Number.of.bedrooms             | Number of bedrooms in the house             |
++-----------------------+---------------+--------------------------------+---------------------------------------------+
+
+: Response variable and explanatory variables{#tbl-variables}
 
 # Load the data
 
