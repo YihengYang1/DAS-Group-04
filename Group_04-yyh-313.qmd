@@ -1,6 +1,6 @@
 ---
 title: "DAS-Project2"
-author: "Yiheng Yang, Yuanqing Zhang"
+author: "Group04: Yiheng Yang, Yuanqing Zhang, Jie Li, Bing Gao, Ningxuan Zhang, Chao Zhou"
 number-sections: true
 format: 
   html:
@@ -16,7 +16,7 @@ execute:
   message: false
 ---
 
-# Introduction
+# Introduction {#sec-Int}
 
 In order to find which household variables that influence the number of people living in a household. We use the datasets come from the Family Income and Expenditure Survey which is conducted in Philippines every three years. All the data were based on Soccsksargen, and the variables are shown in @tbl-variables.
 
@@ -44,16 +44,18 @@ In order to find which household variables that influence the number of people l
 |                       |               | Number.of.bedrooms             | Number of bedrooms in the house             |
 +-----------------------+---------------+--------------------------------+---------------------------------------------+
 
-: Response variable and explanatory variables{#tbl-variables}
+: Response variable and explanatory variables {#tbl-variables}
 
-# Load the data
+# Data Processing {#sec-Pro}
+
+## Load the data
 
 ```{r}
 #| label: data
 data=read.csv("dataset04.csv")
 ```
 
-# Get packages
+## Get packages
 
 ```{r}
 #| label: libraries
@@ -75,11 +77,23 @@ library(kableExtra)
 library(gridExtra)
 ```
 
+## Convert some categorical variables to factors
+
+```{r}
+data$Household.Head.Sex=as.factor(data$Household.Head.Sex)
+data$Type.of.Household=as.factor(data$Type.of.Household)
+data$Electricity=as.factor(data$Electricity)
+levels(data$Electricity)=c("No","Yes")
+data$Number.of.bedrooms=as.factor(data$Number.of.bedrooms)
+levels(data$Number.of.bedrooms)=c("0","1","2","3","4","5","6","7")
+```
+
 # Exploratory Data Analysis {#sec-EDA}
 
 ## Summary of response variable
 
 ```{r}
+# Create a table to summarize the characteristics of the response variables
 data%>%summarize('Mean' = mean(Total.Number.of.Family.members),
 'Median' = median(Total.Number.of.Family.members),
 'St.Dev' = sd(Total.Number.of.Family.members),
@@ -104,23 +118,19 @@ Sample_size = html("Sample Size"))
 
 We can see from this numerical summary, the mean of number of family members is 4.53 and the variance is 4.91. If variance is bigger than mean, we can determine that we have overdispersion. We will investigate this phenomenon later.
 
-## Convert some categorical variables to factors
-
-```{r}
-data$Household.Head.Sex=as.factor(data$Household.Head.Sex)
-data$Type.of.Household=as.factor(data$Type.of.Household)
-data$Electricity=as.factor(data$Electricity)
-levels(data$Electricity)=c("No","Yes")
-data$Number.of.bedrooms=as.factor(data$Number.of.bedrooms)
-levels(data$Number.of.bedrooms)=c("0","1","2","3","4","5","6","7")
-```
-
 ## Summary of categorical explanatory variables
 
 ```{r}
+# Select the categorical explanatory variables
 data_categorical=data%>%
   dplyr::select("Household.Head.Sex","Type.of.Household","Electricity")
-summary(data_categorical)
+```
+
+```{r}
+# Create a table to summarize the characteristics of the categorical explanatory variables
+summary_table_categorical <-summary(data_categorical)
+summary_table_categorical[is.na(summary_table_categorical)] <- ""
+kable(summary_table_categorical,na.strings = "")
 ```
 
 The numerical summary shows that male owners, single families and households with electricity account for a major proportion.
@@ -128,6 +138,7 @@ The numerical summary shows that male owners, single families and households wit
 ## Summary of numerical explanatory variables
 
 ```{r}
+# Create a table to summarize the characteristics of the numerical explanatory variables
 data_numerical=data[,c(1,3,5,7,8,9,10)]
 data_numerical$Number.of.bedrooms=as.numeric(as.character(data_numerical$Number.of.bedrooms))
 my_skim <- skim_with(numeric = sfl(hist = NULL), 
@@ -142,17 +153,23 @@ my_skim(data_numerical) %>%
 
 ## Graphical summaries
 
-As we want to plot a boxplot with x axis to be number of family members, so we need to change this variable to be a factor.
+As we want to plot a histogram with x axis to be number of family members, so we need to change this variable to be a factor.
 
 ```{r}
+# Convert the column "Total.Number.of.Family.members" to factor type
 data$Total.Number.of.Family.members=as.factor(data$Total.Number.of.Family.members)
 ```
 
 ```{r}
+# Plot a histogram to show the distribution of response variable
+#| label: fig-histogram_response
+#| fig-cap: histogram of response variable
+#| fig-align: center
+#| message: false
 ggplot(data=data,aes(x=Total.Number.of.Family.members))+geom_bar()
 ```
 
-The boxplot shows that household with four family members accounts for the largest proportion. Most of the data is consisted of families with three to five family members.
+The @fig-histogram_response shows that household with four family members accounts for the largest proportion. Most of the data is consisted of families with three to five family members.
 
 ```{r}
 p1=ggplot(data=data,aes(y=Total.Household.Income))+geom_boxplot()+labs(y="Total household income",title="Boxplot of total household income")
@@ -167,98 +184,204 @@ p9=ggplot(data=data,aes(x=Electricity))+geom_bar(aes(fill=Electricity))+labs(y="
 ```
 
 ```{r}
-grid.arrange(p1,p2)
-grid.arrange(p3,p5,p8,p9)
-grid.arrange(p4,p6,p7)
+# Arrange the plots in a grid layout for display
+#| label: fig-piechart_sex
+#| fig-cap: Pie chart of Household.Head.Sex
+#| fig-align: center
+#| message: false
+grid.arrange(p3,p5,ncol=1)
 ```
 
 ```{r}
-ggplot(data=data,aes(x=Total.Number.of.Family.members,y=Total.Household.Income,fill=Total.Number.of.Family.members))+geom_boxplot()+theme(legend.position = "none")+labs(x="Number of Family Members",y="Total Household Income",title="Income of families with different number of family members ")
+#| label: fig-barplot_explanatory
+#| fig-cap: Barplots of some explanatory variables
+#| fig-align: center
+#| message: false
+grid.arrange(p8,p9,ncol=2)
 ```
 
-We can see from the above boxplot that the median of household income increase as number of family members increase.
-
 ```{r}
-ggplot(data=data,aes(x=Total.Number.of.Family.members,y=Total.Food.Expenditure,fill=Total.Number.of.Family.members))+geom_boxplot()+theme(legend.position = "none")+labs(x="Number of Family Members",y="Total food expenditure",title="Food expenditure of families with different number of family members")
+#| label: fig-boxplot_explanatory
+#| fig-cap: Boxplot of some explanatory variables
+#| fig-align: center
+#| message: false
+grid.arrange(p1,p2,p4,p6,p7,ncol=3)
 ```
 
-The boxplot indicates that median increase significantly as the number of family members increase. Household with 19 members have the largest variance in food expenditure.
+```{r}
+#| label: fig-boxplot_income
+#| fig-cap: Income of families with different number of family members
+#| fig-align: center
+#| message: false
+ggplot(data=data,aes(x=Total.Number.of.Family.members,y=Total.Household.Income,
+                     fill=Total.Number.of.Family.members))+geom_boxplot()+
+                     theme(legend.position = "none")+
+                     labs(x="Number of Family Members",
+                                       y="Total Household Income")
+```
+
+We can see from the @fig-boxplot_income that the median of household income increase as number of family members increase.
 
 ```{r}
-data%>%
+#| label: fig-boxplot_food
+#| fig-cap: Food expenditure of families with different number of family members
+#| fig-align: center
+#| message: false
+ggplot(data=data,aes(x=Total.Number.of.Family.members,y=Total.Food.Expenditure,
+                     fill=Total.Number.of.Family.members))+geom_boxplot()+
+                     theme(legend.position = "none")+
+                  labs(x="Number of Family Members",y="Total food expenditure")
+```
+
+The @fig-boxplot_food indicates that median increase significantly as the number of family members increase. Household with 19 members have the largest variance in food expenditure.
+
+```{r}
+frequency_sex <- data%>%
   tabyl(Household.Head.Sex,Total.Number.of.Family.members)%>%
   adorn_percentages()%>%
   adorn_pct_formatting()%>%
   adorn_ns()
+kable(frequency_sex)
 ```
 
 ```{r}
-ggplot(data=data,aes(x=Total.Number.of.Family.members,group=Household.Head.Sex))+geom_bar(aes(y=..prop..,fill=Household.Head.Sex),position="dodge")+labs(x="Number of Family Members",y="Proportion",title="Head sex proportion for different size of households")
+#| label: fig-barplot_sex
+#| fig-cap: Head sex proportion for different size of households
+#| fig-align: center
+#| message: false
+ggplot(data=data,aes(x=Total.Number.of.Family.members,
+                     group=Household.Head.Sex))+geom_bar(aes(y=..prop..,
+                    fill=Household.Head.Sex),position="dodge")+
+                    labs(x="Number of Family Members",y="Proportion")
 ```
 
-We can see from the barplot, for those small sized households, the proportion is much higher for females than for males. However, this situation does not exist for those household with four or more family members.
+We can see from the @fig-barplot_sex, for those small sized households, the proportion is much higher for females than for males. However, this situation does not exist for those household with four or more family members.
 
 ```{r}
-ggplot(data=data,aes(x=Household.Head.Sex,y=as.numeric(as.character(Total.Number.of.Family.members))))+geom_boxplot(aes(fill=Household.Head.Sex))+labs(x="Household head sex",y="Number of family members",title="Number of family members by sex")
+#| label: fig-boxplot_sex
+#| fig-cap: Number of family members by sex
+#| fig-align: center
+#| message: false
+ggplot(data=data,aes(x=Household.Head.Sex,
+                     y=as.numeric(as.character(Total.Number.of.Family.members))))+
+  geom_boxplot(aes(fill=Household.Head.Sex))+labs(x="Household head sex",
+                                                  y="Number of family members")
 ```
 
-We can conclude from the boxplot that households tend to have more family members if their owner is male.
+We can conclude from the @fig-boxplot_sex that households tend to have more family members if their owner is male.
 
 ```{r}
-ggplot(data=data,aes(x=Total.Number.of.Family.members,y=Household.Head.Age,fill=Total.Number.of.Family.members))+geom_boxplot()+theme(legend.position = "none")+labs(x="Number of Family Members",y="Household head age",title="Head age for different size households")
+#| label: fig-boxplot_age
+#| fig-cap: Head age for different size households
+#| fig-align: center
+#| message: false
+ggplot(data=data,aes(x=Total.Number.of.Family.members,y=Household.Head.Age,fill=Total.Number.of.Family.members))+geom_boxplot()+theme(legend.position = "none")+labs(x="Number of Family Members",y="Household head age")
 ```
 
-For different size of households, the median of household head age remain at a constant level around 50.
+As shown in @fig-boxplot_age, for different size of households, the median of household head age remain at a constant level around 50.
 
 ```{r}
-ggplot(data=data,aes(x=Total.Number.of.Family.members,group=Type.of.Household))+geom_bar(aes(y=..prop..,fill=Type.of.Household))+labs(x="Number of Family Members",y="Proportion",title="Type of household in different size of households")
+#| label: fig-barplot_type
+#| fig-cap: Type of household in different size of households
+#| fig-align: center
+#| message: false
+ggplot(data=data,aes(x=Total.Number.of.Family.members,
+                     group=Type.of.Household))+
+  geom_bar(aes(y=..prop..,fill=Type.of.Household))+
+  labs(x="Number of Family Members",y="Proportion")
 ```
 
-These families with two or more nonrelated members only exist in medium size household. As total family members increase more than 8, single family account for a very small proportion.
+From we @fig-barplot_type can see that these families with two or more nonrelated members only exist in medium size household. As total family members increase more than 8, single family account for a very small proportion.
 
 ```{r}
-ggplot(data=data,aes(x=Type.of.Household,y=as.numeric(as.character(Total.Number.of.Family.members))))+geom_boxplot(aes(fill=Type.of.Household))+scale_x_discrete(labels=c("Extended","Single","Two or more"))+labs(x="Type of household",y="Number of family members",title="Number of family members by type of household")+theme(legend.position = "bottom")
+#| label: fig-boxplot_type
+#| fig-cap: Number of family members by type of household
+#| fig-align: center
+#| message: false
+ggplot(data=data,aes(x=Type.of.Household,
+                     y=as.numeric(as.character(Total.Number.of.Family.members))))+
+  geom_boxplot(aes(fill=Type.of.Household))+
+  scale_x_discrete(labels=c("Extended","Single","Two or more"))+
+  labs(x="Type of household",y="Number of family members")+
+  theme(legend.position = "bottom")
 ```
 
 ```{r}
-ggplot(data=data,aes(x=Total.Number.of.Family.members,y=House.Floor.Area,fill=Total.Number.of.Family.members))+geom_boxplot()+theme(legend.position = "none")+labs(x="Number of Family Members",y="House floor area",title="House floor area for different size of households")
+#| label: fig-boxplot_floor
+#| fig-cap: House floor area for different size of households
+#| fig-align: center
+#| message: false
+ggplot(data=data,aes(x=Total.Number.of.Family.members,
+                     y=House.Floor.Area,fill=Total.Number.of.Family.members))+
+  geom_boxplot()+theme(legend.position = "none")+
+  labs(x="Number of Family Members",y="House floor area")
 ```
 
-For different sizes of households, there are a few outliers. And the median of house floor area seems to be stable as number of family members increase.
+As shown in @fig-boxplot_floor, there are a few outliers for different sizes of households, . And the median of house floor area seems to be stable as number of family members increase.
 
 ```{r}
-ggplot(data=data,aes(x=Total.Number.of.Family.members,y=House.Age,fill=Total.Number.of.Family.members))+geom_boxplot()+theme(legend.position = "none")+labs(x="Number of Family Members",y="House age",title="House age for different sizes of households")
+#| label: fig-boxplot_house_age
+#| fig-cap: House age for different sizes of households
+#| fig-align: center
+#| message: false
+ggplot(data=data,aes(x=Total.Number.of.Family.members,y=House.Age,
+                     fill=Total.Number.of.Family.members))+
+  geom_boxplot()+theme(legend.position = "none")+
+  labs(x="Number of Family Members",y="House age")
 ```
 
-The median house age of different sizes of households are less than 20 years, which is relatively stable as number of family members increase.
+The median house age of different sizes of households are less than 20 years, which is relatively stable as number of family members increase. (@fig-boxplot_house_age)
 
 ```{r}
-ggplot(data=data,aes(x=Total.Number.of.Family.members,group=Number.of.bedrooms))+geom_bar(aes(y=..prop..,fill=Number.of.bedrooms))+labs(x="Number of Family Members",y="Proportion",title="Number of bedrooms by different sizes of households")
+#| label: fig-barplot_house_size
+#| fig-cap: Number of bedrooms by different sizes of households
+#| fig-align: center
+#| message: false
+ggplot(data=data,aes(x=Total.Number.of.Family.members,
+                     group=Number.of.bedrooms))+
+  geom_bar(aes(y=..prop..,fill=Number.of.bedrooms))+
+  labs(x="Number of Family Members",y="Proportion")
 ```
 
 As the number of family members increases, number of bedrooms increase, but for household with 5 family members, proportion of 7 bedrooms is incredibly high.
 
 ```{r}
-ggplot(data=data,aes(x=Total.Number.of.Family.members,group=Electricity))+geom_bar(aes(y=..prop..,fill=Electricity),position="dodge")+labs(x="Number of Family Members",y="Proportion",title="Electricity by different sizes of households ")
+#| label: fig-barplot_electricity
+#| fig-cap: Electricity by different sizes of households
+#| fig-align: center
+#| message: false
+ggplot(data=data,aes(x=Total.Number.of.Family.members,
+                     group=Electricity))+
+  geom_bar(aes(y=..prop..,fill=Electricity),position="dodge")+
+  labs(x="Number of Family Members",y="Proportion")
 ```
 
-For those small size households, the proportion wothout electricity is relatively high.
+For those small size households, the proportion without electricity is relatively high.
 
 ```{r}
-ggplot(data=data,aes(x=Electricity,y=as.numeric(as.character(Total.Number.of.Family.members))))+geom_boxplot(aes(fill=Electricity))+labs(x="Electricity",y="Number of family members",title="Number of family members by electricity")
+#| label: fig-boxplot_electricity
+#| fig-cap: Number of family members by electricity
+#| fig-align: center
+#| message: false
+ggplot(data=data,aes(x=Electricity,y=as.numeric(as.character(Total.Number.of.Family.members))))+geom_boxplot(aes(fill=Electricity))+labs(x="Electricity",y="Number of family members")
 ```
 
-From the above boxplot, households with electricity and without electricity have the same distribution of family members.
+From the above @fig-boxplot_electricity, households with electricity and without electricity have the same distribution of family members.
 
 # Formal analysis {#sec-FDA}
 
 ## Poisson Regression Model
 
+### Fit model with all variables
+
 ```{r}
 # As the response variable is the number of people living in a household, which is counts data, we tend to use a poisson model to fit it.
-data$Total.Number.of.Family.members=as.numeric(as.character(data$Total.Number.of.Family.members))
+data$Total.Number.of.Family.members=as.numeric(as.character(
+  data$Total.Number.of.Family.members))
 data$Number.of.bedrooms=as.numeric(as.character(data$Number.of.bedrooms))
-model1=glm(Total.Number.of.Family.members~Total.Household.Income+Total.Food.Expenditure+Household.Head.Sex+Household.Head.Age+Type.of.Household+House.Floor.Area+House.Age+Number.of.bedrooms+Electricity,data=data,family = poisson)
+model1=glm(Total.Number.of.Family.members~Total.Household.Income+
+             Total.Food.Expenditure+Household.Head.Sex+Household.Head.Age+
+             Type.of.Household+House.Floor.Area+House.Age+Number.of.bedrooms+Electricity,data=data,family = poisson)
 model1%>%
   summary()
 confint(model1)%>%
@@ -275,7 +398,7 @@ The default baseline in R being taken as the one which comes first alphabeticall
 
 From the above summary we can observe that one continuous explanatory variable floor area is not significant and compared to extended family, Two or More Nonrelated Persons/Members is not significant while single family is significant according to the p-value and the 95% CI of estimates of coefficients.
 
-### Rate Ratio
+#### Rate Ratio
 
 ```{r}
 model_summary <- summary(model1)
@@ -315,11 +438,15 @@ model3%>%
   summary()
 ```
 
-The final model's vairables are all significant now, with an aic value of 8510.4
+The explanatory variables in final model are all significant , with an AIC value of 8510.4.
 
 ## Overdispersion
 
 ```{r}
+#| label: fig-overdispersion
+#| fig-cap: scatterplot of mean and variance
+#| fig-align: center
+#| message: false
 ggplot(model2, aes(x=log(fitted(model2)), y=log((data$Total.Number.of.Family.members-fitted(model2))^2)))+
 geom_point(col="#f46d43") +
 geom_abline(slope=1, intercept=0, col="#a6d96a", linewidth=1) +
@@ -327,7 +454,7 @@ ylab(expression((y-hat(mu))^2)) + xlab(expression(hat(mu)))
 
 ```
 
-From the above scatterplot of mean and variance, we can find most of the points lie above the line of equality for mean and variance. In this case, we are not to able to determine which explanatory variables are significant.
+From @fig-overdispersion, we can find most of the points lie above the line of equality for mean and variance. In this case, we are not to able to determine which explanatory variables are significant.
 
 ### Examine existence of dispersion
 
@@ -336,7 +463,7 @@ library(qcc)
 qcc.overdispersion.test(data$Total.Number.of.Family.members)
 ```
 
-From the dispersion test we know that the p-value\<0.05,indicating that the dispersion does exist in number of family members. So we should consider to fit a Quasi-Poisson model or a negative binomial model to the data.
+From the dispersion test we know that the p-value\<0.05, indicating that the dispersion does exist in number of family members. So we should consider to fit a Quasi-Poisson model or a negative binomial model to the data.
 
 ### Quasi-Poisson model
 
@@ -345,7 +472,7 @@ we can define a dispersion parameter $\phi$ such that $Var(Y_i)=\phi\mu_i$, we c
 ```{r}
 X2=sum(resid(model1,type="pearson")^2)
 dp=X2/model1$df.res
-#With the use of the estimated dispersion parameter the Wald tests are not very reliable, so we turn to an F test to determine the significance of the regression coefficients:
+# With the use of the estimated dispersion parameter the Wald tests are not very reliable, so we turn to an F test to determine the significance of the regression coefficients:
 drop1(model1,test="F")
 ```
 
@@ -397,11 +524,11 @@ summary(model_nb2)
 model_nb2$aic
 ```
 
-Using the negative binomial model, all the variables except floor area are significant.
+Using the negative binomial model, all the variables except floor area are significant and the AIC value is 8512.384.
 
-### Using AIC to choose best model
+## Using AIC to choose best model
 
-#### GLM model
+### GLM model
 
 ```{r}
 c(glm(Total.Number.of.Family.members~Total.Household.Income+Total.Food.Expenditure+Household.Head.Sex+Household.Head.Age+Type.of.Household+House.Age+Number.of.bedrooms+Electricity,data=data1,family = poisson)$aic,
@@ -427,9 +554,9 @@ glm(Total.Number.of.Family.members~Total.Household.Income+Total.Food.Expenditure
 | Number.of.bedrooms     | 8522.761  |
 | Electricity            | 8518.495  |
 
-In ordinary GLM model, the full model with all explanatory variables has the lowest AIC value.
+In ordinary GLM model, the full model with all explanatory variables except House.Floor.Area has the lowest AIC value.
 
-#### Negative binomial model
+### Negative binomial model
 
 ```{r}
 c(glm.nb(Total.Number.of.Family.members~Total.Household.Income+Total.Food.Expenditure+Household.Head.Sex+Household.Head.Age+Type.of.Household+House.Age+Number.of.bedrooms+Electricity,data=data1)$aic,
@@ -456,6 +583,7 @@ glm.nb(Total.Number.of.Family.members~Total.Household.Income+Total.Food.Expendit
 | Electricity            | 8520.517  |
 
 # Final model
+
 We find that GLM model with only floor area variable removed has the lowest AIC value.
 
 The final model is:$$log(Total.Number.of.Family.members)=\beta_0+\beta_1\cdot Total.Household.Income+\beta_2\cdot Total.Food.Expenditure+\beta_3\cdot \mathbb{I}_{\mbox{Male}}(x)+\beta_4\cdot Household.Head.Age+\beta_5\cdot \mathbb{I}_{\mbox{Family}}(x)+\beta_6\cdot House.Age+\beta_7\cdot Number.of.bedrooms+\beta_8\cdot \mathbb{I}_{\mbox{Electricity}}(x)$$
@@ -487,4 +615,4 @@ For single family, the final model is: $$log(Total.Number.of.Family.members)=1.2
 
 # Conclusion
 
-Variables Total.Household.Income, Total.Food.Expenditure, Household.Head.Sex, Household.Head.Age, Type.of.Household, House.Age, Number.of.bedrooms and Electricity could influence response variable Total.Number.of.Family.members.
+After removing the insignificant variables and comparing the AIC values of different models, it is found that the variables Total.Household.Income, Total.Food.Expenditure, Household.Head.Sex, Household.Head.Age, Type.of.Household, House.Age, Number.of.bedrooms and Electricity could influence response variable Total.Number.of.Family.members (the number of people living in a household).
