@@ -153,6 +153,8 @@ my_skim(data_numerical) %>%
 
 ## Graphical summaries
 
+### Graphical summaries of response variable
+
 As we want to plot a histogram with x axis to be number of family members, so we need to change this variable to be a factor.
 
 ```{r}
@@ -161,15 +163,17 @@ data$Total.Number.of.Family.members=as.factor(data$Total.Number.of.Family.member
 ```
 
 ```{r}
-# Plot a histogram to show the distribution of response variable
-#| label: fig-histogram_response
+#| label: fig-his_response
 #| fig-cap: histogram of response variable
 #| fig-align: center
 #| message: false
 ggplot(data=data,aes(x=Total.Number.of.Family.members))+geom_bar()
+# Plot a histogram to show the distribution of response variable
 ```
 
-The @fig-histogram_response shows that household with four family members accounts for the largest proportion. Most of the data is consisted of families with three to five family members.
+The @fig-his_response shows that household with four family members accounts for the largest proportion. Most of the data is consisted of families with three to five family members.
+
+### Graphical summaries of explanatory variables
 
 ```{r}
 p1=ggplot(data=data,aes(y=Total.Household.Income))+geom_boxplot()+labs(y="Total household income",title="Boxplot of total household income")
@@ -207,6 +211,8 @@ grid.arrange(p8,p9,ncol=2)
 #| message: false
 grid.arrange(p1,p2,p4,p6,p7,ncol=3)
 ```
+
+### Relationship between explanatory variables and response variable
 
 ```{r}
 #| label: fig-boxplot_income
