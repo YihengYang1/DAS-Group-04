@@ -701,7 +701,7 @@ $$
 
 # Conclusion and future work
 
-## conclusions
+## Conclusions
 
 After removing the insignificant variables and comparing the AIC values of different models, it is found that the variables Total.Household.Income, Total.Food.Expenditure, Household.Head.Sex, Household.Head.Age, Type.of.Household, House.Age, Number.of.bedrooms and Electricity could influence response variable Total.Number.of.Family.members (the number of people living in a household).
 
