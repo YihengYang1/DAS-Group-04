@@ -31,5 +31,3 @@ If you have any questions about this project or would like to communicate furthe
 ## Acknowledgements
 Thanks to Professors Craig Alexander and Mitchum Bock for their guidance and help. In addition,the raw dataset provided by the FIES (Family Income and Expenditure Survey) also plays an important role in our project.
 
-
-[![Anurag's GitHub stats](https://github-readme-stats.vercel.app/api?username=LJ-Joyce)](https://github.com/anuraghazra/github-readme-stats)
